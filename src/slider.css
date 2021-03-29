@@ -1,0 +1,26 @@
+.slider {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1em;
+}
+
+.slider label {
+    font-weight: bold;
+}
+
+.slider .range {
+    background-color: bisque;
+    display: flex;
+    border-radius: 9999px;
+    border: solid 2px burlywood;
+}
+
+.slider .handle {
+    background-color: #00a0eb;
+    display: flex;
+    flex: none;
+    width: unset;
+    border-radius: 9999px;
+    padding: 0.25em 1em;
+    border: solid 2px #4cc6ff;
+}
