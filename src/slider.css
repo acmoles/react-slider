@@ -23,4 +23,6 @@
     border-radius: 9999px;
     padding: 0.25em 1em;
     border: solid 2px #4cc6ff;
+    cursor: pointer;
+    user-select:none;
 }
