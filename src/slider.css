@@ -12,18 +12,20 @@
     background-color: bisque;
     display: flex;
     border-radius: 9999px;
-    border: solid 2px burlywood;
+    border: solid 4px burlywood;
 }
 
 .slider .handle {
     position: relative;
     background-color: #00a0eb;
+    align-items: center;
+    justify-content: center;
     display: flex;
     flex: none;
     width: unset;
     border-radius: 9999px;
-    padding: 0.25em 1em;
-    border: solid 2px #4cc6ff;
+    padding: 0.25em 0.5em;
+    border: solid 4px #4cc6ff;
     cursor: pointer;
     user-select:none;
 }
