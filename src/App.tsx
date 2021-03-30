@@ -27,15 +27,15 @@ export default class App extends React.Component<{}, State> {
           max: 100,
           min: 0,
           step: 0,
-          value: 50,
+          value: 67,
           unit: "%"
         },
         {
           label: "Label 2",
-          max: 100,
+          max: 1,
           min: 0,
           step: 0,
-          value: 50
+          value: 0.33
         },
       ],
     };
