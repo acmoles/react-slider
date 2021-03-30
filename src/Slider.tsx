@@ -2,6 +2,23 @@ import React from "react";
 import "./slider.css";
 import { SliderData } from "./App"
 
+/*
+Production TODOs
+----------------
+
+- Handle native touch events
+- Increase legacy browser compatibility e.g. event.clientX, prefix inline transform style, requestAnimationFrame, addEventListener
+
+Nice to have's
+--------------
+
+- Click on slider range to set value
+- Smooth snapping to steps
+- Overdrag on start/end with snap back to first/last position
+- Animate into position on external prop change
+- Virtual precision greater than per-pixel?
+*/
+
 interface SliderProps extends SliderData {
   onChange(value: number): void;
 }

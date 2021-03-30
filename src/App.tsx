@@ -23,7 +23,7 @@ export default class App extends React.Component<{}, State> {
     this.state = {
       sliders: [
         {
-          label: "Label",
+          label: "Percentage Label",
           max: 100,
           min: 0,
           step: 0,
@@ -31,7 +31,7 @@ export default class App extends React.Component<{}, State> {
           unit: "%"
         },
         {
-          label: "Label 2",
+          label: "Proportional Label",
           max: 1,
           min: 0,
           step: 5,
@@ -40,12 +40,12 @@ export default class App extends React.Component<{}, State> {
       ],
     };
 
-    setTimeout(() => {
-      const sliders = this.state.sliders.slice();
-      sliders[0].max = 50;
-      sliders[0].min = -100;
-      this.setState({sliders: sliders});
-    }, 2000);
+    // setTimeout(() => {
+    //   const sliders = this.state.sliders.slice();
+    //   sliders[0].max = 50;
+    //   sliders[0].min = -100;
+    //   this.setState({sliders: sliders});
+    // }, 2000);
   }
 
   handleSliderChange(id: number, value: number) {
@@ -75,9 +75,13 @@ export default class App extends React.Component<{}, State> {
         <hr />
 
         <p>INTERACTIVE SLIDERS TO GO HERE</p>
-        <div className="box">
-          {sliderList}
-        </div>
+        <ul className="clear">
+          <li>
+            <div className="box">
+              {sliderList}
+            </div>
+          </li>
+        </ul>
       </div>
     );
   }
