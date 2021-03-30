@@ -45,7 +45,7 @@ export default class App extends React.Component<{}, State> {
     const sliders = this.state.sliders.slice();
     sliders[id].value = value;
     this.setState({sliders: sliders});
-    console.log(this.state.sliders);
+    //console.log(this.state.sliders);
   }
 
   render() {
