@@ -8,6 +8,7 @@ Production TODOs
 
 - Handle native touch events
 - Increase legacy browser compatibility e.g. event.clientX, prefix inline transform style, requestAnimationFrame, addEventListener
+- Something other than transitioning box-shadow for better better performance (like more dom elements fading in/out with opacity)
 
 Nice to have's
 --------------
