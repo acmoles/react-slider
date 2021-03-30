@@ -2,10 +2,12 @@
     display: flex;
     flex-direction: column;
     margin-bottom: 1em;
+    user-select:none;
 }
 
 .slider label {
     font-weight: bold;
+    user-select: all;
 }
 
 .slider .range {
@@ -25,9 +27,9 @@
     width: unset;
     border-radius: 9999px;
     padding: 0.25em 0.5em;
-    border: solid 4px #4cc6ff;
+    border-left: solid 1px #081d27;
+    border-right: solid 1px #081d27;
     cursor: pointer;
-    user-select:none;
 }
 
 .slider .hitbox {

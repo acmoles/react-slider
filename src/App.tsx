@@ -34,18 +34,24 @@ export default class App extends React.Component<{}, State> {
           label: "Label 2",
           max: 1,
           min: 0,
-          step: 0,
+          step: 5,
           value: 0.33
         },
       ],
     };
+
+    setTimeout(() => {
+      const sliders = this.state.sliders.slice();
+      sliders[0].max = 50;
+      sliders[0].min = -100;
+      this.setState({sliders: sliders});
+    }, 2000);
   }
 
   handleSliderChange(id: number, value: number) {
     const sliders = this.state.sliders.slice();
     sliders[id].value = value;
     this.setState({sliders: sliders});
-    //console.log(this.state.sliders);
   }
 
   render() {
@@ -69,7 +75,7 @@ export default class App extends React.Component<{}, State> {
         <hr />
 
         <p>INTERACTIVE SLIDERS TO GO HERE</p>
-        <div className="slider-group">
+        <div className="box">
           {sliderList}
         </div>
       </div>

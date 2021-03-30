@@ -8,6 +8,7 @@ interface SliderProps extends SliderData {
 
 interface SliderState {
   offsetHandle: number;
+  dragging: boolean;
 }
 
 export class Slider extends React.Component<SliderProps, SliderState> {
@@ -16,7 +17,6 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   offsetWrapper: number;
   offsetMouse: number;
   prevOffsetHandle: number;
-  dragging: boolean;
   stepRatios: number[];
   wrapperRange: number;
 
@@ -27,7 +27,8 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   constructor(props: SliderProps) {
     super(props);
     this.state = {
-      offsetHandle: 0
+      offsetHandle: 0,
+      dragging: false
     }
 
     this.rangeRef = React.createRef();
@@ -37,7 +38,6 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     this.offsetWrapper = 0;
     this.offsetMouse = 0;
     this.prevOffsetHandle = -1;
-    this.dragging = false;
     this.stepRatios = this.calculateStepRatios(); 
     this.wrapperRange = 0; // Calculated in didMount hook reflow
   }
@@ -69,18 +69,37 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     this.handleDragEnd(event)
   }
 
+  componentDidUpdate(prevProps: SliderProps) {
+    if (
+      prevProps.min !== this.props.min ||
+      prevProps.max !== this.props.max
+    ) {
+      this.reflow();
+      this.setValue(this.getNormalized(this.props.value));
+    }
+
+    if (prevProps.step !== this.props.step) {
+      this.calculateStepRatios();
+    }
+  }
+
   render() {
     // Some kind of formatting config in the future
-    const valueFormatted = this.props.unit ? this.props.value.toFixed(0) + this.props.unit : this.props.value.toFixed(2);
-    const maxFormattedStringLength = this.calculateMaxFormattedCharacters()
+    const formattedValue = this.props.unit ? this.props.value.toFixed(0) + this.props.unit : this.props.value.toFixed(2);
+    const maxFormattedStringLength = this.calculateMaxFormattedCharacters();
 
     const handleStyle = {
       transform: "translateX(" + this.state.offsetHandle + "px)",
       minWidth: maxFormattedStringLength + "em"
     }
 
+    const sliderClasses = ["slider"];
+    if (this.state.dragging) {
+      sliderClasses.push("active");
+    }
+
     return (
-      <div className="slider">
+      <div className={sliderClasses.join(" ")}>
         <label>{ this.props.label }</label>
         <div className="range" ref={this.rangeRef}>
           <div
@@ -92,7 +111,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
               className="hitbox"
               onMouseDown={(event) => {this.handleDragStart(event)}}
             ></div>
-            {valueFormatted}
+            {formattedValue}
           </div>
         </div>
       </div>
@@ -103,42 +122,29 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     event.preventDefault();
     event.stopPropagation();
 
-    console.log("drag start");
-
     // Start drag
-    this.dragging = true;
+    this.setState({dragging: true});
     this.offsetWrapper = GetPosition(this.rangeRef.current);
     this.offsetMouse = event.clientX - GetPosition(this.handleRef.current);
-
-    // TODO add active class
   }
 
   handleDragEnd(event: any) {
-    if (!this.dragging) {
+    if (!this.state.dragging) {
       return;
     }
     // Stop drag
-    this.dragging = false;
-
-    console.log("drag end");
-
-    // TODO final stepped value to set? Better to snap as dragged...
-
-
-    // TODO remove active class
+    this.setState({dragging: false});
   }
 
   handleDrag(event: any) {
-    if (this.dragging) {
+    if (this.state.dragging) {
       event.preventDefault();
-      //console.log("drag update");
 
       this.scheduledAnimationFrame = requestAnimationFrame(() => {
         const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
         this.setValueByOffset(offset);
         this.updateOffsetFromValue();
       })
-
     }
   }
 
@@ -150,6 +156,15 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   translateNormalized( value: number ) {
     let unnormalized = value * (this.props.max - this.props.min) + this.props.min;
     return unnormalized
+  }
+
+  setValue(valueToSet: number) {
+    const value = this.translateNormalized(
+      this.getAllowableValue(
+        valueToSet
+      )
+    );
+    this.props.onChange(value);
   }
 
   setValueByOffset(offset: number) {
@@ -165,12 +180,14 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     this.valueNormalised = this.getNormalized(this.props.value);
 
     let offset = this.getOffsetByRatio(
-      //this.getClosestStep(this.valueNormalised),
-      this.valueNormalised
+      this.getAllowableValue(
+        //this.getClosestStep(this.valueNormalised),
+        this.valueNormalised
+      )
     );
 
     if (offset !== this.prevOffsetHandle) {
-      this.setState({offsetHandle: offset})
+      this.setState({offsetHandle: offset});
       this.prevOffsetHandle = offset;
     }
   }
@@ -188,42 +205,39 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     allowable = Math.max(value, 0);
     allowable = Math.min(allowable, 1);
 
-    //TODO set to stepped value
+    if (this.props.step > 1) {
+      allowable = this.getClosestStep(allowable);
+    }
+
     return allowable;
   }
 
   reflow() {
     this.offsetWrapper = GetPosition(this.rangeRef.current);
-    this.wrapperRange = this.calculateRange();
-    //this.valuePrecision = this.calculateValuePrecision();
+    this.wrapperRange = this.rangeRef.current.clientWidth - this.handleRef.current.offsetWidth;
     this.updateOffsetFromValue();
   }
 
-  calculateRange() {
-    return this.rangeRef.current.clientWidth - this.handleRef.current.offsetWidth;
-  }
-
   getClosestStep(value: number) {
-    var k = 0;
+    var stepIndex = 0;
     var min = 1;
     for (var i = 0; i <= this.props.step - 1; i++) {
       if (Math.abs(this.stepRatios[i] - value) < min) {
         min = Math.abs(this.stepRatios[i] - value);
-        k = i;
+        stepIndex = i;
       }
     }
-    return this.stepRatios[k];
+    return this.stepRatios[stepIndex];
   }
 
   calculateStepRatios() {
-    // TODO step should update on prop change
     var stepRatios = [];
     if (this.props.step >= 1) {
       for (var i = 0; i <= this.props.step - 1; i++) {
         if (this.props.step > 1) {
           stepRatios[i] = i / (this.props.step - 1);
         } else {
-          // A single step will always have a 0 value
+          // Say, a single step will always have a 0 value
           stepRatios[i] = 0;
         }
       }
@@ -232,11 +246,10 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   }
 
   calculateMaxFormattedCharacters() {
-    // Improve with formatting config in the future
-    const formattedValue = this.props.unit ? this.props.max.toFixed(0) + this.props.unit : this.props.max.toFixed(2);
-    return formattedValue.length;
+    const formattedValueMax = this.props.unit ? this.props.max.toFixed(0) + this.props.unit : this.props.max.toFixed(2);
+    const formattedValueMin = this.props.unit ? this.props.min.toFixed(0) + this.props.unit : this.props.min.toFixed(2);
+    return Math.max(formattedValueMax.length, formattedValueMin.length);
   }
-
 
 }
 
