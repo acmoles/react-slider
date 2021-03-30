@@ -15,8 +15,8 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   valueNormalised: number;
   offsetWrapper: number;
   offsetMouse: number;
+  prevOffsetHandle: number;
   dragStartPosition: number;
-  active: boolean;
   dragging: boolean;
   stepRatios: number[];
   wrapperRange: number;
@@ -28,7 +28,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   constructor(props: SliderProps) {
     super(props);
     this.state = {
-      offsetHandle: this.getNormalized(this.props.value) // TODO, not current value but current calculated offset
+      offsetHandle: 10
     }
 
     this.rangeRef = React.createRef();
@@ -37,8 +37,8 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     this.valueNormalised = this.getNormalized(this.props.value);
     this.offsetWrapper = 0;
     this.offsetMouse = 0;
+    this.prevOffsetHandle = -1;
     this.dragStartPosition = 0;
-    this.active = false;
     this.dragging = false;
     this.stepRatios = this.calculateStepRatios(); 
     this.wrapperRange = 0; // Calculated in didMount hook
@@ -46,15 +46,16 @@ export class Slider extends React.Component<SliderProps, SliderState> {
 
   componentDidMount() {
     window.addEventListener('resize', this.handleWindowChange);
-    this.animate(true);
-    this.scheduledAnimationFrame = requestAnimationFrame(() => {
-      this.animate();
-    })
+    document.addEventListener('mousemove', this.handleMouseMove);
+    document.addEventListener('mouseup', this.handleMouseUp);
+    this.layout();
     this.wrapperRange = this.calculateRange(); 
   }
 
   componentWillUnmount() {
     window.removeEventListener('resize', this.handleWindowChange);
+    document.removeEventListener('mousemove', this.handleMouseMove);
+    document.removeEventListener('mouseup', this.handleMouseUp);
     cancelAnimationFrame(this.scheduledAnimationFrame);
   }
 
@@ -62,20 +63,35 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     this.reflow();
   }
 
+  handleMouseMove = (event: any) => {
+    this.handleDrag(event);
+  }
+
+  handleMouseUp = (event: any) => {
+    this.handleDragEnd(event)
+  }
+
   render() {
+    // TODO some kind of config in the future
     const valueFormatted = this.props.unit ? this.props.value.toFixed(0) + this.props.unit : this.props.value.toFixed(2);
+
+    const handleStyle = {
+      transform: 'translateX(' + this.state.offsetHandle + 'px)'
+    }
 
     return (
       <div className="slider">
         <label onClick={() => this.handleSliderChange()}>{ this.props.label }</label>
         <div className="range" ref={this.rangeRef}>
-          <div 
+          <div
             className="handle"
             ref={this.handleRef}
-            onMouseDown={this.handleDragStart}
-            onMouseUp={this.handleDragEnd}
-            onMouseMove={this.handleDrag}
+            style={handleStyle}
           >
+            <div 
+              className="hitbox"
+              onMouseDown={(event) => {this.handleDragStart(event)}}
+            ></div>
             {"drag me: " + valueFormatted}
           </div>
         </div>
@@ -83,16 +99,25 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     );
   }
 
-  handleDragEnd() {
+  handleDragStart(event: any) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  handleDragEnd(event: any) {
     
   }
 
-  handleDragStart() {
+  handleDrag(event: any) {
+    if (this.dragging) {
 
-  }
+      this.scheduledAnimationFrame = requestAnimationFrame(() => {
+        const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
+        this.setValueByOffset(offset);
+        this.layout();
+      })
 
-  handleDrag() {
-
+    }
   }
 
   handleSliderChange() {
@@ -100,15 +125,8 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     this.props.onChange(value);
   }
 
-  animate(first?: boolean) {
-    if (this.dragging) {
-      // set target value
-    }
-
-
-    this.scheduledAnimationFrame = requestAnimationFrame(() => {
-      this.animate();
-    })
+  layout() {
+    this.updateOffsetFromValue();
   }
 
   getNormalized( value: number ) {
@@ -121,8 +139,24 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     return unnormalized
   }
 
-  updateOffsetFromValue() {
+  setValueByOffset(offset: number) {
+    
+  }
 
+  updateOffsetFromValue() {
+    let offset = this.getOffsetByRatio(
+      this.getClosestStep(this.valueNormalised),
+      this.wrapperRange
+    );
+
+    if (offset !== this.prevOffsetHandle) {
+      this.setState({offsetHandle: offset})
+      this.prevOffsetHandle = offset;
+    }
+  }
+
+  getOffsetByRatio(ratio: number, range: number) {
+    return Math.round(ratio * range);
   }
 
   reflow() {
@@ -133,11 +167,22 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   }
 
   setRangeOffset() {
-
   }
 
   calculateRange() {
     return this.rangeRef.current.offsetWidth - this.handleRef.current.offsetWidth;
+  }
+
+  getClosestStep(value: number) {
+    var k = 0;
+    var min = 1;
+    for (var i = 0; i <= this.props.step - 1; i++) {
+      if (Math.abs(this.stepRatios[i] - value) < min) {
+        min = Math.abs(this.stepRatios[i] - value);
+        k = i;
+      }
+    }
+    return this.stepRatios[k];
   }
 
   calculateStepRatios() {

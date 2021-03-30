@@ -16,6 +16,7 @@
 }
 
 .slider .handle {
+    position: relative;
     background-color: #00a0eb;
     display: flex;
     flex: none;
@@ -25,4 +26,13 @@
     border: solid 2px #4cc6ff;
     cursor: pointer;
     user-select:none;
+}
+
+.slider .hitbox {
+    position: absolute;
+    left: -1em;
+    right: -1em;
+    top: -1em;
+    bottom: -1em;
+    border: 1px solid red;
 }
