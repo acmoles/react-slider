@@ -239,15 +239,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   }
 
   getClosestStep(value: number) {
-    var stepIndex = 0;
-    var min = 1;
-    for (var i = 0; i <= this.stepRatios.length - 1; i++) {
-      if (Math.abs(this.stepRatios[i] - value) < min) {
-        min = Math.abs(this.stepRatios[i] - value);
-        stepIndex = i;
-      }
-    }
-    return this.stepRatios[stepIndex];
+    return this.stepRatios.reduce((prev, curr) => Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev);
   }
 
   calculateStepRatios() {
