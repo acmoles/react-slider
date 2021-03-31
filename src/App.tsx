@@ -34,7 +34,7 @@ export default class App extends React.Component<{}, State> {
           label: "Proportional Label",
           max: 1,
           min: 0,
-          step: 5,
+          step: 0.1,
           value: 0.33
         },
       ],

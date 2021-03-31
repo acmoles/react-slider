@@ -1,14 +1,16 @@
 import React from "react";
 import "./slider.css";
-import { SliderData } from "./App"
+import { SliderData } from "./App";
 
 /*
 Production TODOs
 ----------------
 
+- Accessibility e.g. Semantic html tags (button for handle?), best practices for sliders, Aria attributes
 - Handle native touch events
 - Increase legacy browser compatibility e.g. event.clientX, prefix inline transform style, requestAnimationFrame, addEventListener
 - Something other than transitioning box-shadow for better better performance (like more dom elements fading in/out with opacity)
+- Either all px or all em for styling rules
 
 Nice to have's
 --------------
@@ -30,8 +32,6 @@ interface SliderState {
 }
 
 export class Slider extends React.Component<SliderProps, SliderState> {
-
-  valueNormalised: number;
   offsetWrapper: number;
   offsetMouse: number;
   prevOffsetHandle: number;
@@ -47,16 +47,15 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     this.state = {
       offsetHandle: 0,
       dragging: false
-    }
+    };
 
     this.rangeRef = React.createRef();
     this.handleRef = React.createRef();
 
-    this.valueNormalised = this.getNormalized(this.props.value);
     this.offsetWrapper = 0;
     this.offsetMouse = 0;
     this.prevOffsetHandle = -1;
-    this.stepRatios = this.calculateStepRatios(); 
+    this.stepRatios = this.calculateStepRatios();
     this.wrapperRange = 0; // Calculated in didMount hook reflow
   }
 
@@ -77,23 +76,26 @@ export class Slider extends React.Component<SliderProps, SliderState> {
 
   handleWindowChange = () => {
     this.reflow();
-  }
+  };
 
   handleMouseMove = (event: any) => {
     this.handleDrag(event);
-  }
+  };
 
   handleMouseUp = (event: any) => {
-    this.handleDragEnd(event)
-  }
+    this.handleDragEnd(event);
+  };
 
   componentDidUpdate(prevProps: SliderProps) {
-    if (
-      prevProps.min !== this.props.min ||
-      prevProps.max !== this.props.max
-    ) {
+    if (prevProps.min !== this.props.min || prevProps.max !== this.props.max) {
       this.reflow();
-      this.setValue(this.getNormalized(this.props.value));
+      // Ensure value is set to allowable value
+      const value = this.translateNormalized(
+        this.getAllowableValue(
+          this.getNormalized(this.props.value)
+          )
+        );
+      this.props.onChange(value);
     }
 
     if (prevProps.step !== this.props.step) {
@@ -101,15 +103,22 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     }
   }
 
+  setValue(valueToSet: number) {
+    const value = this.translateNormalized(this.getAllowableValue(valueToSet));
+    this.props.onChange(value);
+  }
+
   render() {
     // Some kind of formatting config in the future
-    const formattedValue = this.props.unit ? this.props.value.toFixed(0) + this.props.unit : this.props.value.toFixed(2);
+    const formattedValue = this.props.unit
+      ? this.props.value.toFixed(0) + this.props.unit
+      : this.props.value.toFixed(2);
     const maxFormattedStringLength = this.calculateMaxFormattedCharacters();
 
     const handleStyle = {
       transform: "translateX(" + this.state.offsetHandle + "px)",
       minWidth: maxFormattedStringLength + "em"
-    }
+    };
 
     const sliderClasses = ["slider"];
     if (this.state.dragging) {
@@ -118,17 +127,16 @@ export class Slider extends React.Component<SliderProps, SliderState> {
 
     return (
       <div className={sliderClasses.join(" ")}>
-        <label>{ this.props.label }</label>
+        <label>{this.props.label}</label>
         <div className="range" ref={this.rangeRef}>
           <div
             className="handle"
             ref={this.handleRef}
             style={handleStyle}
-          >
-            <div 
-              className="hitbox"
-              onMouseDown={(event) => {this.handleDragStart(event)}}
-            ></div>
+            onMouseDown={
+              (event) => {this.handleDragStart(event);}
+            }
+            >
             {formattedValue}
           </div>
         </div>
@@ -141,7 +149,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     event.stopPropagation();
 
     // Start drag
-    this.setState({dragging: true});
+    this.setState({ dragging: true });
     this.offsetWrapper = GetPosition(this.rangeRef.current);
     this.offsetMouse = event.clientX - GetPosition(this.handleRef.current);
   }
@@ -151,7 +159,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
       return;
     }
     // Stop drag
-    this.setState({dragging: false});
+    this.setState({ dragging: false });
   }
 
   handleDrag(event: any) {
@@ -162,50 +170,42 @@ export class Slider extends React.Component<SliderProps, SliderState> {
         const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
         this.setValueByOffset(offset);
         this.updateOffsetFromValue();
-      })
+      });
     }
   }
 
-  getNormalized( value: number ) {
-    let normalized = (value - this.props.min) / (this.props.max - this.props.min);
-    return normalized
+  getNormalized(value: number) {
+    let normalized =
+      (value - this.props.min) / (this.props.max - this.props.min);
+    return normalized;
   }
 
-  translateNormalized( value: number ) {
-    let unnormalized = value * (this.props.max - this.props.min) + this.props.min;
-    return unnormalized
-  }
-
-  setValue(valueToSet: number) {
-    const value = this.translateNormalized(
-      this.getAllowableValue(
-        valueToSet
-      )
-    );
-    this.props.onChange(value);
+  translateNormalized(value: number) {
+    let unnormalized =
+      value * (this.props.max - this.props.min) + this.props.min;
+    return unnormalized;
   }
 
   setValueByOffset(offset: number) {
     const value = this.translateNormalized(
       this.getAllowableValue(
         this.getRatioByOffset(offset)
-      )
+        )
     );
     this.props.onChange(value);
   }
 
   updateOffsetFromValue() {
-    this.valueNormalised = this.getNormalized(this.props.value);
+    const valueNormalised = this.getNormalized(this.props.value);
 
     let offset = this.getOffsetByRatio(
       this.getAllowableValue(
-        //this.getClosestStep(this.valueNormalised),
-        this.valueNormalised
+        valueNormalised
       )
     );
 
     if (offset !== this.prevOffsetHandle) {
-      this.setState({offsetHandle: offset});
+      this.setState({ offsetHandle: offset });
       this.prevOffsetHandle = offset;
     }
   }
@@ -223,7 +223,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     allowable = Math.max(value, 0);
     allowable = Math.min(allowable, 1);
 
-    if (this.props.step > 1) {
+    if (this.stepRatios.length > 0) {
       allowable = this.getClosestStep(allowable);
     }
 
@@ -239,7 +239,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   getClosestStep(value: number) {
     var stepIndex = 0;
     var min = 1;
-    for (var i = 0; i <= this.props.step - 1; i++) {
+    for (var i = 0; i <= this.stepRatios.length - 1; i++) {
       if (Math.abs(this.stepRatios[i] - value) < min) {
         min = Math.abs(this.stepRatios[i] - value);
         stepIndex = i;
@@ -249,28 +249,37 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   }
 
   calculateStepRatios() {
+    var steps = 0;
+    const normalisedStep = this.getNormalized(this.props.step);
+    if (normalisedStep > 0 && normalisedStep < 1) {
+      steps = 1 / normalisedStep;
+    }
+
     var stepRatios = [];
-    if (this.props.step >= 1) {
-      for (var i = 0; i <= this.props.step - 1; i++) {
-        if (this.props.step > 1) {
-          stepRatios[i] = i / (this.props.step - 1);
+    if (steps >= 1) {
+      for (var i = 0; i <= steps; i++) {
+        if (steps > 1) {
+          stepRatios[i] = i / steps;
         } else {
           // Say, a single step will always have a 0 value
           stepRatios[i] = 0;
         }
       }
     }
+
     return stepRatios;
   }
 
   calculateMaxFormattedCharacters() {
-    const formattedValueMax = this.props.unit ? this.props.max.toFixed(0) + this.props.unit : this.props.max.toFixed(2);
-    const formattedValueMin = this.props.unit ? this.props.min.toFixed(0) + this.props.unit : this.props.min.toFixed(2);
+    const formattedValueMax = this.props.unit
+      ? this.props.max.toFixed(0) + this.props.unit
+      : this.props.max.toFixed(2);
+    const formattedValueMin = this.props.unit
+      ? this.props.min.toFixed(0) + this.props.unit
+      : this.props.min.toFixed(2);
     return Math.max(formattedValueMax.length, formattedValueMin.length);
   }
-
 }
-
 
 // Helpers
 
