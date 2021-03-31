@@ -87,19 +87,21 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   };
 
   componentDidUpdate(prevProps: SliderProps) {
-    if (prevProps.min !== this.props.min || prevProps.max !== this.props.max) {
+    if (prevProps.step !== this.props.step) {
+      this.stepRatios = this.calculateStepRatios();
+    }
+
+    if (
+      prevProps.min !== this.props.min ||
+      prevProps.max !== this.props.max ||
+      prevProps.step !== this.props.step
+    ) {
       this.reflow();
       // Ensure value is set to allowable value
       const value = this.translateNormalized(
-        this.getAllowableValue(
-          this.getNormalized(this.props.value)
-          )
-        );
+        this.getAllowableValue(this.getNormalized(this.props.value))
+      );
       this.props.onChange(value);
-    }
-
-    if (prevProps.step !== this.props.step) {
-      this.calculateStepRatios();
     }
   }
 
