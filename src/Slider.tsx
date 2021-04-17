@@ -6,20 +6,10 @@ import { SliderData } from "./App";
 Production TODOs
 ----------------
 
-- Accessibility e.g. Semantic html tags (button for handle?), best practices for sliders, Aria attributes
-- Handle native touch events
-- Increase legacy browser compatibility e.g. event.clientX, prefix inline transform style, requestAnimationFrame, addEventListener
+- Accessibility e.g. Semantic html tags, best practices for sliders, Aria attributes, keyboard support
+- Handle native touch events (pointer events API)
 - Something other than transitioning box-shadow for better better performance (like more dom elements fading in/out with opacity)
 - Either all px or all em for styling rules
-
-Nice to have's
---------------
-
-- Click on slider range to set value
-- Smooth snapping to steps
-- Overdrag on start/end with snap back to first/last position
-- Animate into position on external prop change
-- Virtual precision greater than per-pixel?
 */
 
 interface SliderProps extends SliderData {
@@ -35,10 +25,8 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   offsetWrapper: number;
   offsetMouse: number;
   prevOffsetHandle: number;
-  stepRatios: number[];
   wrapperRange: number;
 
-  scheduledAnimationFrame: any;
   rangeRef: any;
   handleRef: any;
 
@@ -55,7 +43,6 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     this.offsetWrapper = 0;
     this.offsetMouse = 0;
     this.prevOffsetHandle = -1;
-    this.stepRatios = this.calculateStepRatios();
     this.wrapperRange = 0; // Calculated in didMount hook reflow
   }
 
@@ -71,7 +58,6 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     window.removeEventListener("resize", this.handleWindowChange);
     document.removeEventListener("mousemove", this.handleMouseMove);
     document.removeEventListener("mouseup", this.handleMouseUp);
-    cancelAnimationFrame(this.scheduledAnimationFrame);
   }
 
   handleWindowChange = () => {
@@ -87,31 +73,19 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   };
 
   componentDidUpdate(prevProps: SliderProps) {
-    if (prevProps.step !== this.props.step) {
-      this.stepRatios = this.calculateStepRatios();
-    }
-
     if (
       prevProps.min !== this.props.min ||
       prevProps.max !== this.props.max ||
       prevProps.step !== this.props.step
     ) {
       this.reflow();
-      // Ensure value is set to allowable value
-      const value = this.translateNormalized(
-        this.getAllowableValue(this.getNormalized(this.props.value))
-      );
+      // Ensure incoming value is set to allowable value
+      const value = this.getAllowableValue(this.props.value);
       this.props.onChange(value);
     }
   }
 
-  setValue(valueToSet: number) {
-    const value = this.translateNormalized(this.getAllowableValue(valueToSet));
-    this.props.onChange(value);
-  }
-
   render() {
-    // Some kind of formatting config in the future
     const formattedValue = this.props.unit
       ? this.props.value.toFixed(0) + this.props.unit
       : this.props.value.toFixed(2);
@@ -138,6 +112,10 @@ export class Slider extends React.Component<SliderProps, SliderState> {
             onMouseDown={
               (event) => {this.handleDragStart(event);}
             }
+            role="slider"
+            aria-valuemin={this.props.min}
+            aria-valuenow={this.props.value}
+            aria-valuemax={this.props.max}
             >
             {formattedValue}
           </div>
@@ -150,7 +128,6 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     event.preventDefault();
     event.stopPropagation();
 
-    // Start drag
     this.setState({ dragging: true });
     this.offsetWrapper = GetPosition(this.rangeRef.current);
     this.offsetMouse = event.clientX - GetPosition(this.handleRef.current);
@@ -160,51 +137,29 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     if (!this.state.dragging) {
       return;
     }
-    // Stop drag
     this.setState({ dragging: false });
   }
 
   handleDrag(event: any) {
     if (this.state.dragging) {
       event.preventDefault();
-
-      this.scheduledAnimationFrame = requestAnimationFrame(() => {
-        const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
-        this.setValueByOffset(offset);
-        this.updateOffsetFromValue();
-      });
+      const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
+      this.setValueByOffset(offset);
+      this.updateOffsetFromValue();
     }
   }
 
-  getNormalized(value: number) {
-    let normalized =
-      (value - this.props.min) / (this.props.max - this.props.min);
-    return normalized;
-  }
-
-  translateNormalized(value: number) {
-    let unnormalized =
-      value * (this.props.max - this.props.min) + this.props.min;
-    return unnormalized;
-  }
-
   setValueByOffset(offset: number) {
-    const value = this.translateNormalized(
-      this.getAllowableValue(
-        this.getRatioByOffset(offset)
-        )
-    );
+    const ratio = this.getRatioByOffset(offset);
+    let value = this.translateNormalized(ratio);
+    value = this.getAllowableValue(value);
     this.props.onChange(value);
   }
 
   updateOffsetFromValue() {
-    const valueNormalised = this.getNormalized(this.props.value);
-
-    let offset = this.getOffsetByRatio(
-      this.getAllowableValue(
-        valueNormalised
-      )
-    );
+    const valueAllowable = this.getAllowableValue(this.props.value);
+    const ratio = this.getNormalized(valueAllowable);
+    const offset = this.getOffsetByRatio(ratio);
 
     if (offset !== this.prevOffsetHandle) {
       this.setState({ offsetHandle: offset });
@@ -222,14 +177,26 @@ export class Slider extends React.Component<SliderProps, SliderState> {
 
   getAllowableValue(value: number) {
     let allowable = value;
-    allowable = Math.max(value, 0);
-    allowable = Math.min(allowable, 1);
+    allowable = Math.max(value, this.props.min);
+    allowable = Math.min(allowable, this.props.max);
 
-    if (this.stepRatios.length > 0) {
+    if (this.props.step) {
       allowable = this.getClosestStep(allowable);
     }
 
     return allowable;
+  }
+
+  getNormalized(value: number) {
+    let normalized =
+      (value - this.props.min) / (this.props.max - this.props.min);
+    return normalized;
+  }
+
+  translateNormalized(value: number) {
+    let unnormalized =
+      value * (this.props.max - this.props.min) + this.props.min;
+    return unnormalized;
   }
 
   reflow() {
@@ -239,29 +206,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   }
 
   getClosestStep(value: number) {
-    return this.stepRatios.reduce((prev, curr) => Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev);
-  }
-
-  calculateStepRatios() {
-    var steps = 0;
-    const normalisedStep = this.getNormalized(this.props.step);
-    if (normalisedStep > 0 && normalisedStep < 1) {
-      steps = 1 / normalisedStep;
-    }
-
-    var stepRatios = [];
-    if (steps >= 1) {
-      for (var i = 0; i <= steps; i++) {
-        if (steps > 1) {
-          stepRatios[i] = i / steps;
-        } else {
-          // Say, a single step will always have a 0 value
-          stepRatios[i] = 0;
-        }
-      }
-    }
-
-    return stepRatios;
+    return Math.round(value / this.props.step) * this.props.step;
   }
 
   calculateMaxFormattedCharacters() {

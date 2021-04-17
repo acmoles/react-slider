@@ -24,9 +24,9 @@ export default class App extends React.Component<{}, State> {
       sliders: [
         {
           label: "Percentage Label",
-          max: 100,
+          max: 1000,
           min: 0,
-          step: 0,
+          step: 5,
           value: 67,
           unit: "%"
         },
