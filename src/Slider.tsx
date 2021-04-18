@@ -6,7 +6,6 @@ Production TODOs
 ----------------
 
 - Accessibility e.g. Semantic html tags, best practices for sliders, Aria attributes, keyboard support
-- Handle native touch events (pointer events API)
 - Something other than transitioning box-shadow for better better performance (like more dom elements fading in/out with opacity)
 - Either all px or all em for styling rules
 */
@@ -40,12 +39,32 @@ export function Slider({
 }: SliderProps): ReactElement {
 
     const [offsetHandle, setOffsetHandle] = useState(0);
-    const [dragging, setDragging] = useState(false);
+    const [dragging, _setDragging] = useState(false);
+
+    // event listeners don't have access to updated state, ref workaround
+    const draggingRef = useRef(dragging);
+    const setDragging = (data: boolean) => {
+      draggingRef.current = data;
+      _setDragging(data);
+    };
 
     const handleRef = useRef(null);
     const rangeRef = useRef(null);
 
     // TODO refs to handle mutable state
+
+    const offsetWrapper = useRef(0);
+    const offsetMouse = useRef(0);
+    const prevOffsetHandle = useRef(-1);
+    const wrapperRange = useRef(0);
+    
+    // this.offsetWrapper = 0; https://reactjs.org/docs/hooks-reference.html#useref
+    // this.offsetMouse = 0;
+    // this.prevOffsetHandle = -1;
+    // this.wrapperRange = 0; 
+
+
+    // TODO on prop change updates
 
     const handleDragStart = (event: any) => {
       event.preventDefault();
@@ -60,7 +79,7 @@ export function Slider({
     // useCallback to ensure same function on each re-render
     const handleDrag = useCallback(
       (event: any) => {
-        if (dragging) {
+        if (draggingRef.current) {
           event.preventDefault();
           //const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
           //this.setValueByOffset(offset);
@@ -68,23 +87,24 @@ export function Slider({
           console.log("drag", event);
         }
       },
-      [dragging, setOffsetHandle]
+      [setOffsetHandle]
     );
 
     const handleDragEnd = useCallback(
       (event: any) => {
-        if (dragging) {
+        if (draggingRef.current) {
           setDragging(false);
           console.log("drag end", event);
         }
       },
-      [dragging, setDragging]
+      [setDragging]
     );
 
     // window and document events
     useEffect(() => {
       function handleWindowChange() {
         console.log("window");
+        // reflow
       }
 
       // Add event listeners
@@ -97,6 +117,7 @@ export function Slider({
 
       // Remove event listener on cleanup
       return () => {
+        console.log("cleanup");
         window.removeEventListener("resize", handleWindowChange);
         document.removeEventListener("pointermove", handleDrag);
         document.removeEventListener("pointerup", handleDragEnd);    
