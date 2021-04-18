@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactElement, useState, useEffect, useRef, useCallback } from "react";
 import "./slider.css";
 
 /*
@@ -29,7 +29,120 @@ interface SliderState {
   dragging: boolean;
 }
 
-export class Slider extends React.Component<SliderProps, SliderState> {
+export function Slider({
+  label,
+  max,
+  min,
+  step,
+  value,
+  unit,
+  onChange,
+}: SliderProps): ReactElement {
+
+    const [offsetHandle, setOffsetHandle] = useState(0);
+    const [dragging, setDragging] = useState(false);
+
+    const handleRef = useRef(null);
+    const rangeRef = useRef(null);
+
+    // TODO refs to handle mutable state
+
+    const handleDragStart = (event: any) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      console.log("drag start");
+      setDragging(true);
+      // this.offsetWrapper = GetPosition(this.rangeRef.current);
+      // this.offsetMouse = event.clientX - GetPosition(this.handleRef.current);
+    };
+
+    // useCallback to ensure same function on each re-render
+    const handleDrag = useCallback(
+      (event: any) => {
+        if (dragging) {
+          event.preventDefault();
+          //const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
+          //this.setValueByOffset(offset);
+          //this.updateOffsetFromValue();
+          console.log("drag", event);
+        }
+      },
+      [dragging, setOffsetHandle]
+    );
+
+    const handleDragEnd = useCallback(
+      (event: any) => {
+        if (dragging) {
+          setDragging(false);
+          console.log("drag end", event);
+        }
+      },
+      [dragging, setDragging]
+    );
+
+    // window and document events
+    useEffect(() => {
+      function handleWindowChange() {
+        console.log("window");
+      }
+
+      // Add event listeners
+      window.addEventListener("resize", handleWindowChange);
+      document.addEventListener("pointermove", handleDrag);
+      document.addEventListener("pointerup", handleDragEnd); 
+
+      // Call window handler right away to get initial reflow
+      handleWindowChange();
+
+      // Remove event listener on cleanup
+      return () => {
+        window.removeEventListener("resize", handleWindowChange);
+        document.removeEventListener("pointermove", handleDrag);
+        document.removeEventListener("pointerup", handleDragEnd);    
+      };
+
+    }, []); // Empty array ensures effect is only run on mount
+
+
+
+    const formattedValue = unit ? value.toFixed(0) + unit : value.toFixed(2);
+    const maxFormattedStringLength = CalculateMaxFormattedCharacters(min, max, unit);
+
+    const handleStyle = {
+      transform: "translateX(" + offsetHandle + "px)",
+      minWidth: maxFormattedStringLength + "em"
+    };
+
+    const sliderClasses = ["slider"];
+    if (dragging) {
+      sliderClasses.push("active");
+    }
+
+    return (
+      <div className={sliderClasses.join(" ")}>
+        <label>{label}</label>
+        <div className="range" ref={rangeRef}>
+          <div
+            className="handle"
+            ref={handleRef}
+            style={handleStyle}
+            onPointerDown={
+              (event) => {handleDragStart(event);}
+            }
+            role="slider"
+            aria-valuemin={min}
+            aria-valuenow={value}
+            aria-valuemax={max}
+            >
+            {formattedValue}
+          </div>
+        </div>
+      </div>
+    );
+}
+
+class SliderClass extends React.Component<SliderProps, SliderState> {
   offsetWrapper: number;
   offsetMouse: number;
   prevOffsetHandle: number;
@@ -97,7 +210,7 @@ export class Slider extends React.Component<SliderProps, SliderState> {
     const formattedValue = this.props.unit
       ? this.props.value.toFixed(0) + this.props.unit
       : this.props.value.toFixed(2);
-    const maxFormattedStringLength = this.calculateMaxFormattedCharacters();
+    const maxFormattedStringLength = CalculateMaxFormattedCharacters(this.props.min, this.props.max, this.props.unit);
 
     const handleStyle = {
       transform: "translateX(" + this.state.offsetHandle + "px)",
@@ -216,16 +329,6 @@ export class Slider extends React.Component<SliderProps, SliderState> {
   getClosestStep(value: number) {
     return Math.round(value / this.props.step) * this.props.step;
   }
-
-  calculateMaxFormattedCharacters() {
-    const formattedValueMax = this.props.unit
-      ? this.props.max.toFixed(0) + this.props.unit
-      : this.props.max.toFixed(2);
-    const formattedValueMin = this.props.unit
-      ? this.props.min.toFixed(0) + this.props.unit
-      : this.props.min.toFixed(2);
-    return Math.max(formattedValueMax.length, formattedValueMin.length);
-  }
 }
 
 // Helpers
@@ -233,4 +336,10 @@ export class Slider extends React.Component<SliderProps, SliderState> {
 function GetPosition(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
   return rect.left;
+}
+
+function CalculateMaxFormattedCharacters(min: number, max: number, unit?: string) {
+  const formattedValueMax = unit ? max.toFixed(0) + unit : max.toFixed(2);
+  const formattedValueMin = unit ? min.toFixed(0) + unit : min.toFixed(2);
+  return Math.max(formattedValueMax.length, formattedValueMin.length);
 }
