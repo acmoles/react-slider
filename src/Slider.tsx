@@ -1,6 +1,5 @@
 import React from "react";
 import "./slider.css";
-import { SliderData } from "./App";
 
 /*
 Production TODOs
@@ -11,6 +10,15 @@ Production TODOs
 - Something other than transitioning box-shadow for better better performance (like more dom elements fading in/out with opacity)
 - Either all px or all em for styling rules
 */
+
+export interface SliderData {
+  label: string;
+  max: number;
+  min: number;
+  step: number;
+  value: number;
+  unit?: string;
+}
 
 interface SliderProps extends SliderData {
   onChange(value: number): void;

@@ -1,16 +1,7 @@
 import * as React from "react";
 import "./styles.css";
 import { Info } from "./Info";
-import { Slider } from "./Slider";
-
-export interface SliderData {
-  label: string;
-  max: number;
-  min: number;
-  step: number;
-  value: number;
-  unit?: string;
-}
+import { Slider, SliderData } from "./Slider";
 
 interface State {
   sliders: SliderData[];
