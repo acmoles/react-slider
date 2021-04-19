@@ -5,7 +5,7 @@ import "./slider.css";
 Production TODOs
 ----------------
 
-- Accessibility e.g. Semantic html tags, best practices for sliders, Aria attributes, keyboard support
+- Accessibility: keyboard support
 - Something other than transitioning box-shadow for better better performance (like more dom elements fading in/out with opacity)
 - Either all px or all em for styling rules
 */
@@ -38,6 +38,7 @@ export function Slider({
   onChange,
 }: SliderProps): ReactElement {
 
+    // React state
     const [offsetHandle, setOffsetHandle] = useState(0);
     const [dragging, _setDragging] = useState(false);
 
@@ -48,23 +49,61 @@ export function Slider({
       _setDragging(data);
     };
 
-    const handleRef = useRef(null);
-    const rangeRef = useRef(null);
+    // DOM Nodes TODO
+    const rangeRef = useCallback(node => {
+      if (node !== null) {
+        console.log("change range ref");
+        
+        // Update mutable state on change
+        offsetWrapper.current = node.getBoundingClientRect().left;
+        wrapperRange.current = node.clientWidth - handleWidth.current;
+      }
+    }, []);
+    const handleRef = useCallback(node => {
+      if (node !== null) {
+        console.log("change handle ref");
 
-    // TODO refs to handle mutable state
+        // Update mutable state on change
+        handleWidth.current = node.offsetWidth;
+      }
+    }, []);
 
+    // Mutable state
     const offsetWrapper = useRef(0);
     const offsetMouse = useRef(0);
     const prevOffsetHandle = useRef(-1);
+
+    const handleWidth = useRef(0); // TODO ?
     const wrapperRange = useRef(0);
     
-    // this.offsetWrapper = 0; https://reactjs.org/docs/hooks-reference.html#useref
-    // this.offsetMouse = 0;
-    // this.prevOffsetHandle = -1;
-    // this.wrapperRange = 0; 
+    const setValueByOffset = (offset: number) => {
+      const ratio = GetRatioByOffset(offset, wrapperRange.current);
+      let value = GetUnnormalized(ratio, min, max);
+      value = GetAllowableValue(value, min, max, step);
+      onChange(value);
+    }
+    
+    const updateOffsetFromValue = () => {
+      const valueAllowable = GetAllowableValue(value, min, max, step);
+      const ratio = GetNormalized(valueAllowable, min, max);
+      const offset = GetOffsetByRatio(ratio, wrapperRange.current);
+      console.log("update outer");
+      
+      if (offset !== prevOffsetHandle.current) {
+        console.log("update inner");
+        setOffsetHandle(offset);
+        prevOffsetHandle.current = offset;
+      }
+    }
 
-
-    // TODO on prop change updates
+    // Prop change sync TODO reflow and update?
+    useEffect(() => {
+      console.log("prop change");
+      updateOffsetFromValue();
+      // Ensure incoming value is set to allowable value
+      const allowableValue = GetAllowableValue(value, min, max, step);
+      onChange(allowableValue);
+    }, [min, max, step]);
 
     const handleDragStart = (event: any) => {
       event.preventDefault();
@@ -72,19 +111,18 @@ export function Slider({
       
       console.log("drag start");
       setDragging(true);
-      // this.offsetWrapper = GetPosition(this.rangeRef.current);
-      // this.offsetMouse = event.clientX - GetPosition(this.handleRef.current);
+      offsetMouse.current = event.clientX - offsetHandle;
     };
 
-    // useCallback to ensure same function on each re-render
+    // useCallback ensures same function on each re-render
     const handleDrag = useCallback(
       (event: any) => {
         if (draggingRef.current) {
           event.preventDefault();
-          //const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
-          //this.setValueByOffset(offset);
-          //this.updateOffsetFromValue();
-          console.log("drag", event);
+          const offset = event.clientX - offsetWrapper.current - offsetMouse.current;
+          setValueByOffset(offset);
+          updateOffsetFromValue();
+          //console.log("drag", event);
         }
       },
       [setOffsetHandle]
@@ -94,7 +132,7 @@ export function Slider({
       (event: any) => {
         if (draggingRef.current) {
           setDragging(false);
-          console.log("drag end", event);
+          console.log("drag end");
         }
       },
       [setDragging]
@@ -104,17 +142,14 @@ export function Slider({
     useEffect(() => {
       function handleWindowChange() {
         console.log("window");
-        // reflow
+        //reflow(); TODO
       }
 
       // Add event listeners
       window.addEventListener("resize", handleWindowChange);
       document.addEventListener("pointermove", handleDrag);
-      document.addEventListener("pointerup", handleDragEnd); 
-
-      // Call window handler right away to get initial reflow
-      handleWindowChange();
-
+      document.addEventListener("pointerup", handleDragEnd);
+  
       // Remove event listener on cleanup
       return () => {
         console.log("cleanup");
@@ -124,8 +159,6 @@ export function Slider({
       };
 
     }, []); // Empty array ensures effect is only run on mount
-
-
 
     const formattedValue = unit ? value.toFixed(0) + unit : value.toFixed(2);
     const maxFormattedStringLength = CalculateMaxFormattedCharacters(min, max, unit);
@@ -163,204 +196,44 @@ export function Slider({
     );
 }
 
-class SliderClass extends React.Component<SliderProps, SliderState> {
-  offsetWrapper: number;
-  offsetMouse: number;
-  prevOffsetHandle: number;
-  wrapperRange: number;
-
-  rangeRef: any;
-  handleRef: any;
-
-  constructor(props: SliderProps) {
-    super(props);
-    this.state = {
-      offsetHandle: 0,
-      dragging: false
-    };
-
-    this.rangeRef = React.createRef();
-    this.handleRef = React.createRef();
-
-    this.offsetWrapper = 0;
-    this.offsetMouse = 0;
-    this.prevOffsetHandle = -1;
-    this.wrapperRange = 0; // Calculated in didMount hook reflow
-  }
-
-  componentDidMount() {
-    window.addEventListener("resize", this.handleWindowChange);
-    document.addEventListener("mousemove", this.handleMouseMove);
-    document.addEventListener("mouseup", this.handleMouseUp);
-    this.reflow();
-    this.updateOffsetFromValue();
-  }
-
-  componentWillUnmount() {
-    window.removeEventListener("resize", this.handleWindowChange);
-    document.removeEventListener("mousemove", this.handleMouseMove);
-    document.removeEventListener("mouseup", this.handleMouseUp);
-  }
-
-  handleWindowChange = () => {
-    this.reflow();
-  };
-
-  handleMouseMove = (event: any) => {
-    this.handleDrag(event);
-  };
-
-  handleMouseUp = (event: any) => {
-    this.handleDragEnd(event);
-  };
-
-  componentDidUpdate(prevProps: SliderProps) {
-    if (
-      prevProps.min !== this.props.min ||
-      prevProps.max !== this.props.max ||
-      prevProps.step !== this.props.step
-    ) {
-      this.reflow();
-      // Ensure incoming value is set to allowable value
-      const value = this.getAllowableValue(this.props.value);
-      this.props.onChange(value);
-    }
-  }
-
-  render() {
-    const formattedValue = this.props.unit
-      ? this.props.value.toFixed(0) + this.props.unit
-      : this.props.value.toFixed(2);
-    const maxFormattedStringLength = CalculateMaxFormattedCharacters(this.props.min, this.props.max, this.props.unit);
-
-    const handleStyle = {
-      transform: "translateX(" + this.state.offsetHandle + "px)",
-      minWidth: maxFormattedStringLength + "em"
-    };
-
-    const sliderClasses = ["slider"];
-    if (this.state.dragging) {
-      sliderClasses.push("active");
-    }
-
-    return (
-      <div className={sliderClasses.join(" ")}>
-        <label>{this.props.label}</label>
-        <div className="range" ref={this.rangeRef}>
-          <div
-            className="handle"
-            ref={this.handleRef}
-            style={handleStyle}
-            onMouseDown={
-              (event) => {this.handleDragStart(event);}
-            }
-            role="slider"
-            aria-valuemin={this.props.min}
-            aria-valuenow={this.props.value}
-            aria-valuemax={this.props.max}
-            >
-            {formattedValue}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  handleDragStart(event: any) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    this.setState({ dragging: true });
-    this.offsetWrapper = GetPosition(this.rangeRef.current);
-    this.offsetMouse = event.clientX - GetPosition(this.handleRef.current);
-  }
-
-  handleDragEnd(event: any) {
-    if (!this.state.dragging) {
-      return;
-    }
-    this.setState({ dragging: false });
-  }
-
-  handleDrag(event: any) {
-    if (this.state.dragging) {
-      event.preventDefault();
-      const offset = event.clientX - this.offsetWrapper - this.offsetMouse;
-      this.setValueByOffset(offset);
-      this.updateOffsetFromValue();
-    }
-  }
-
-  setValueByOffset(offset: number) {
-    const ratio = this.getRatioByOffset(offset);
-    let value = this.translateNormalized(ratio);
-    value = this.getAllowableValue(value);
-    this.props.onChange(value);
-  }
-
-  updateOffsetFromValue() {
-    const valueAllowable = this.getAllowableValue(this.props.value);
-    const ratio = this.getNormalized(valueAllowable);
-    const offset = this.getOffsetByRatio(ratio);
-
-    if (offset !== this.prevOffsetHandle) {
-      this.setState({ offsetHandle: offset });
-      this.prevOffsetHandle = offset;
-    }
-  }
-
-  getOffsetByRatio(ratio: number) {
-    return Math.round(ratio * this.wrapperRange);
-  }
-
-  getRatioByOffset(offset: number) {
-    return this.wrapperRange ? offset / this.wrapperRange : 0;
-  }
-
-  getAllowableValue(value: number) {
-    let allowable = value;
-    allowable = Math.max(value, this.props.min);
-    allowable = Math.min(allowable, this.props.max);
-
-    if (this.props.step) {
-      allowable = this.getClosestStep(allowable);
-    }
-
-    return allowable;
-  }
-
-  getNormalized(value: number) {
-    let normalized =
-      (value - this.props.min) / (this.props.max - this.props.min);
-    return normalized;
-  }
-
-  translateNormalized(value: number) {
-    let unnormalized =
-      value * (this.props.max - this.props.min) + this.props.min;
-    return unnormalized;
-  }
-
-  reflow() {
-    this.offsetWrapper = GetPosition(this.rangeRef.current);
-    this.wrapperRange = this.rangeRef.current.clientWidth - this.handleRef.current.offsetWidth;
-    this.updateOffsetFromValue();
-  }
-
-  getClosestStep(value: number) {
-    return Math.round(value / this.props.step) * this.props.step;
-  }
-}
-
 // Helpers
-
-function GetPosition(element: HTMLElement) {
-  const rect = element.getBoundingClientRect();
-  return rect.left;
-}
 
 function CalculateMaxFormattedCharacters(min: number, max: number, unit?: string) {
   const formattedValueMax = unit ? max.toFixed(0) + unit : max.toFixed(2);
   const formattedValueMin = unit ? min.toFixed(0) + unit : min.toFixed(2);
   return Math.max(formattedValueMax.length, formattedValueMin.length);
+}
+
+function GetOffsetByRatio(ratio: number, wrapperRange: number) {
+  return Math.round(ratio * wrapperRange);
+}
+
+function GetRatioByOffset(offset: number, wrapperRange: number) {
+  return wrapperRange ? offset / wrapperRange : 0;
+}
+
+function GetNormalized(value: number, min: number, max: number) {
+  let normalized = (value - min) / (max - min);
+  return normalized;
+}
+
+function GetUnnormalized(value: number, min: number, max: number) {
+  let unnormalized = value * (max - min) + min;
+  return unnormalized;
+}
+
+function GetAllowableValue(value: number, min: number, max: number, step?: number) {
+  let allowable = value;
+  allowable = Math.max(value, min);
+  allowable = Math.min(allowable, max);
+
+  if (step) {
+    allowable = GetClosestStep(allowable, step);
+  }
+
+  return allowable;
+}
+
+function GetClosestStep(value: number, step: number) {
+  return Math.round(value / step) * step; 
 }
