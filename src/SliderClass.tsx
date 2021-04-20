@@ -55,28 +55,20 @@ export class SliderClass extends React.Component<SliderProps, SliderState> {
 
   componentDidMount() {
     window.addEventListener("resize", this.handleWindowChange);
-    document.addEventListener("mousemove", this.handleMouseMove);
-    document.addEventListener("mouseup", this.handleMouseUp);
+    document.addEventListener("pointermove", this.handleDragEnd);
+    document.addEventListener("pointerup", this.handleDragEnd);
     this.reflow();
     this.updateOffsetFromValue();
   }
 
   componentWillUnmount() {
     window.removeEventListener("resize", this.handleWindowChange);
-    document.removeEventListener("mousemove", this.handleMouseMove);
-    document.removeEventListener("mouseup", this.handleMouseUp);
+    document.removeEventListener("pointermove", this.handleDragEnd);
+    document.removeEventListener("pointerup", this.handleDragEnd);
   }
 
   handleWindowChange = () => {
     this.reflow();
-  };
-
-  handleMouseMove = (event: any) => {
-    this.handleDrag(event);
-  };
-
-  handleMouseUp = (event: any) => {
-    this.handleDragEnd(event);
   };
 
   componentDidUpdate(prevProps: SliderProps) {
@@ -140,14 +132,14 @@ export class SliderClass extends React.Component<SliderProps, SliderState> {
     this.offsetMouse = event.clientX - GetPosition(this.handleRef.current);
   }
 
-  handleDragEnd(event: any) {
+  handleDragEnd = (event: any) => {
     if (!this.state.dragging) {
       return;
     }
     this.setState({ dragging: false });
   }
 
-  handleDrag(event: any) {
+  handleDrag = (event: any) => {
     if (this.state.dragging) {
       event.preventDefault();
       const offset = event.clientX - this.offsetWrapper - this.offsetMouse;

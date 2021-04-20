@@ -57,8 +57,6 @@ export function Slider({
     const offsetWrapper = useRef<number | undefined>(0);
     const offsetMouse = useRef(0);
     const prevOffsetHandle = useRef(-1);
-
-    const handleWidth = useRef(0); // TODO ?
     const wrapperRange = useRef<number | undefined>(0);
 
     // Respond to layout changes
