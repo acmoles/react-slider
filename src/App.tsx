@@ -31,13 +31,13 @@ export default class App extends React.Component<{}, State> {
       ],
     };
 
-    setTimeout(() => {
-      const sliders = this.state.sliders.slice();
-      sliders[0].max = 50;
-      sliders[0].min = -100;
-      sliders[1].step = 0.2;
-      this.setState({sliders: sliders});
-    }, 2000);
+    // setTimeout(() => {
+    //   const sliders = this.state.sliders.slice();
+    //   sliders[0].max = 50;
+    //   sliders[0].min = -100;
+    //   sliders[1].step = 0.2;
+    //   this.setState({sliders: sliders});
+    // }, 2000);
   }
 
   handleSliderChange(id: number, value: number) {
