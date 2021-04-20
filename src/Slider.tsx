@@ -44,38 +44,33 @@ export function Slider({
 
     // event listeners don't have access to updated state, ref workaround
     const draggingRef = useRef(dragging);
-    const setDragging = (data: boolean) => {
+    const setDragging = useCallback((data: boolean) => {
       draggingRef.current = data;
       _setDragging(data);
-    };
+    }, [_setDragging]);
 
-    // DOM Nodes TODO
-    const rangeRef = useCallback(node => {
-      if (node !== null) {
-        console.log("change range ref");
-        
-        // Update mutable state on change
-        offsetWrapper.current = node.getBoundingClientRect().left;
-        wrapperRange.current = node.clientWidth - handleWidth.current;
-      }
-    }, []);
-    const handleRef = useCallback(node => {
-      if (node !== null) {
-        console.log("change handle ref");
-
-        // Update mutable state on change
-        handleWidth.current = node.offsetWidth;
-      }
-    }, []);
+    // DOM Nodes
+    const rangeRef = useRef<HTMLDivElement>(null);
+    const handleRef = useRef<HTMLDivElement>(null);
 
     // Mutable state
-    const offsetWrapper = useRef(0);
+    const offsetWrapper = useRef<number | undefined>(0);
     const offsetMouse = useRef(0);
     const prevOffsetHandle = useRef(-1);
 
     const handleWidth = useRef(0); // TODO ?
-    const wrapperRange = useRef(0);
+    const wrapperRange = useRef<number | undefined>(0);
+
+    // Respond to layout changes
+    const reflow = () => {
+      offsetWrapper.current = rangeRef?.current?.getBoundingClientRect().left;
+      console.log("reflow offsetWrapper: ", offsetWrapper.current);
+      wrapperRange.current = (rangeRef?.current?.clientWidth ?? 0) - (handleRef?.current?.offsetWidth ?? 0); 
+      console.log("reflow wrapperRange: ", wrapperRange.current);
+      updateOffsetFromValue();
+    }
     
+    // Moving the handle
     const setValueByOffset = (offset: number) => {
       const ratio = GetRatioByOffset(offset, wrapperRange.current);
       let value = GetUnnormalized(ratio, min, max);
@@ -87,52 +82,51 @@ export function Slider({
       const valueAllowable = GetAllowableValue(value, min, max, step);
       const ratio = GetNormalized(valueAllowable, min, max);
       const offset = GetOffsetByRatio(ratio, wrapperRange.current);
-      console.log("update outer");
       
       if (offset !== prevOffsetHandle.current) {
-        console.log("update inner");
         setOffsetHandle(offset);
         prevOffsetHandle.current = offset;
       }
     }
 
-    // Prop change sync TODO reflow and update?
+    // Prop change sync
     useEffect(() => {
-      console.log("prop change");
       updateOffsetFromValue();
+    }, [value]); 
+
+    useEffect(() => {
+      reflow();
+      //console.log("value change"); // TODO
       // Ensure incoming value is set to allowable value
       const allowableValue = GetAllowableValue(value, min, max, step);
       onChange(allowableValue);
-    }, [min, max, step]);
+    }, [min, max, step]); 
+
 
     const handleDragStart = (event: any) => {
       event.preventDefault();
       event.stopPropagation();
       
-      console.log("drag start");
       setDragging(true);
-      offsetMouse.current = event.clientX - offsetHandle;
+      offsetMouse.current = event.clientX - (handleRef?.current?.getBoundingClientRect().left ?? 0);
     };
 
-    // useCallback ensures same function on each re-render
+    // In event handlers, useCallback ensures same function on each re-render
     const handleDrag = useCallback(
       (event: any) => {
         if (draggingRef.current) {
           event.preventDefault();
-          const offset = event.clientX - offsetWrapper.current - offsetMouse.current;
+          const offset = event.clientX - (offsetWrapper.current ?? 0) - offsetMouse.current;
           setValueByOffset(offset);
-          updateOffsetFromValue();
-          //console.log("drag", event);
         }
       },
-      [setOffsetHandle]
+      [setValueByOffset, updateOffsetFromValue, offsetWrapper, offsetMouse]
     );
 
     const handleDragEnd = useCallback(
       (event: any) => {
         if (draggingRef.current) {
           setDragging(false);
-          console.log("drag end");
         }
       },
       [setDragging]
@@ -141,8 +135,7 @@ export function Slider({
     // window and document events
     useEffect(() => {
       function handleWindowChange() {
-        console.log("window");
-        //reflow(); TODO
+        reflow();
       }
 
       // Add event listeners
@@ -158,7 +151,7 @@ export function Slider({
         document.removeEventListener("pointerup", handleDragEnd);    
       };
 
-    }, []); // Empty array ensures effect is only run on mount
+    }, []);
 
     const formattedValue = unit ? value.toFixed(0) + unit : value.toFixed(2);
     const maxFormattedStringLength = CalculateMaxFormattedCharacters(min, max, unit);
@@ -186,7 +179,7 @@ export function Slider({
             }
             role="slider"
             aria-valuemin={min}
-            aria-valuenow={value}
+            aria-valuenow={Math.round(value * 100) / 100}
             aria-valuemax={max}
             >
             {formattedValue}
@@ -204,11 +197,11 @@ function CalculateMaxFormattedCharacters(min: number, max: number, unit?: string
   return Math.max(formattedValueMax.length, formattedValueMin.length);
 }
 
-function GetOffsetByRatio(ratio: number, wrapperRange: number) {
-  return Math.round(ratio * wrapperRange);
+function GetOffsetByRatio(ratio: number, wrapperRange?: number) {
+  return Math.round(ratio * (wrapperRange ?? 0));
 }
 
-function GetRatioByOffset(offset: number, wrapperRange: number) {
+function GetRatioByOffset(offset: number, wrapperRange?: number) {
   return wrapperRange ? offset / wrapperRange : 0;
 }
 

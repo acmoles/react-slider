@@ -121,7 +121,7 @@ export class SliderClass extends React.Component<SliderProps, SliderState> {
             }
             role="slider"
             aria-valuemin={this.props.min}
-            aria-valuenow={this.props.value}
+            aria-valuenow={Math.round((this.props.value * 100) / 100)}
             aria-valuemax={this.props.max}
             >
             {formattedValue}
