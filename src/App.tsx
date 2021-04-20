@@ -1,16 +1,7 @@
 import * as React from "react";
 import "./styles.css";
 import { Info } from "./Info";
-import { Slider } from "./Slider";
-
-export interface SliderData {
-  label: string;
-  max: number;
-  min: number;
-  step: number;
-  value: number;
-  unit?: string;
-}
+import { Slider, SliderData } from "./Slider";
 
 interface State {
   sliders: SliderData[];
@@ -26,8 +17,8 @@ export default class App extends React.Component<{}, State> {
           label: "Percentage Label",
           max: 1000,
           min: 0,
-          step: 5,
-          value: 67,
+          step: 0,
+          value: 500,
           unit: "%"
         },
         {
@@ -35,18 +26,18 @@ export default class App extends React.Component<{}, State> {
           max: 1,
           min: 0,
           step: 0.1,
-          value: 0.33
+          value: 0.75
         },
       ],
     };
 
-    // setTimeout(() => {
-    //   const sliders = this.state.sliders.slice();
-    //   sliders[0].max = 50;
-    //   sliders[0].min = -100;
-    //   sliders[1].step = 0.2;
-    //   this.setState({sliders: sliders});
-    // }, 2000);
+    setTimeout(() => {
+      const sliders = this.state.sliders.slice();
+      sliders[0].max = 50;
+      sliders[0].min = -100;
+      sliders[1].step = 0.2;
+      this.setState({sliders: sliders});
+    }, 2000);
   }
 
   handleSliderChange(id: number, value: number) {
